@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panel Sizing Tool</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#eef1f4;color:#17212b}
+header{padding:20px 16px 8px;max-width:960px;margin:auto}h1{margin:0 0 4px;font-size:22px}header p{margin:0 0 12px;color:#4a5866}
+.bar{display:flex;gap:8px;flex-wrap:wrap}.btn,button{font:inherit;border:1px solid #1f5fa8;background:#1f5fa8;color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+button.alt{background:#fff;color:#1f5fa8}button:focus-visible,.btn:focus-within{outline:3px solid #9cc3ee}
+main{max-width:960px;margin:auto;padding:8px 16px 40px}.card{background:#fff;border:1px solid #d3dae1;border-radius:8px;padding:14px;margin:12px 0}
+.top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start}h2{margin:0;font-size:17px}.top p{margin:2px 0 0;color:#4a5866;font-size:13px}
+.ctl{display:flex;gap:10px;align-items:center}select{font:inherit;padding:4px 6px}.sum{margin:10px 0 8px}
+.sc{overflow-x:auto;border:1px solid #e1e6eb;border-radius:6px;background:#fafbfc}.sc svg{display:block}
+.lg{font-size:12px;color:#4a5866;margin:6px 0}details{margin-top:6px}summary{cursor:pointer}ul{margin:6px 0;padding-left:20px}
+.warn,.note{color:#9a3412;margin:10px 0}.note{padding:0 16px}
+</style></head><body>
+<header><h1>Panel sizing</h1><p>Upload the filled Sizing_Input_v2.xlsx. You get the cell layout, every width and a PDF drawing.</p>
+<div class="bar"><label class="btn"><input type="file" id="f" accept=".xlsx,.xls" hidden>Upload sheet</label><button class="alt" id="ex">Try the example</button><button class="alt" id="all" hidden>PDF of all panels</button></div></header>
+<main id="out"></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+//E
+const FM=['1','2a','2b','3','4'],X0=10,Y0=34,H=160,K=1.5;
+const HT={XT1:[15,15,20,20,20],XT2:[15,15,20,20,20],XT3:[20,20,20,20,25],XT4:[20,20,20,20,25],XT5:[20,20,25,25,30],XT6:[25,25,30,30,35]};
+const UW={XT1:40,XT2:40,XT3:40,XT4:40,XT5:40,XT6:40,XT7:40,'E1.2':60,'E2.2':60,'E4.2 W':80,'E4.2 F':60,'E6.2':100},BRK=Object.keys(UW);
+const SCH={'1 incomer':1,'1 out of 2':1,'1 out of 2 with coupler':2,'2 out of 3 with 1 coupler':2,'2 out of 3 with 2 couplers':3};
+const COL={up:['#dbe7f7','#3b6aa8','#1d3f73'],xt:['#d6efe6','#2f8f6f','#14503b'],pf:['#f8e6c2','#b9852a','#6b4a0c'],sp:['#e7e7e7','#9a9a9a','#555']};
+const P=(k,w,l,x)=>Object.assign({k,w,lines:l||[]},x),sp=w=>P('sp',w);
+const canon=s=>BRK.find(b=>b.toLowerCase()===String(s).trim().toLowerCase())||'';
+function inc(t,role,rs){const w=UW[t],L=[role,t];if(!rs)return[{p:[P('up',w,L)]}];
+ if(/^XT[1-4]$/.test(t))return[{p:[P('up',40,L.concat('riser'))]}];
+ if(/^XT[56]$|^XT7$|^E1\.2$/.test(t))return[{p:[P('up',60,L.concat('riser'))]}];
+ const e=t==='E6.2'?40:20,c=P('up',w,L),s=P('sp',e,[],t==='E6.2'?{riser:1}:{});
+ return[{lab:(w+e)+' ('+(rs==='R'?w+'+'+e:e+'+'+w)+')',p:rs==='R'?[c,s]:[s,c]}]}
+function pfc(sec,det){const a=sec.p50||0,b=sec.p25||0,cells=[];if(!sec.pf||sec.pf==='No'||!(a+b))return{g:[],kv:[]};
+ if(det){const d=[];for(let i=0;i<a;i++)d.push([50]);for(let i=0;i<b;i+=2)d.push(b-i>1?[25,25]:[25]);for(let i=0;i<d.length;i+=4)cells.push(d.slice(i,i+4))}
+ else{const st=[...Array(a).fill(50),...Array(b).fill(25)],tot=a*50+b*25;
+  for(let k=Math.max(Math.ceil(st.length/8),Math.ceil(tot/350));;k++){const c=Array.from({length:k},()=>({s:[],v:0}));let ok=true;
+   for(const v of st){const x=c.filter(y=>y.s.length<8&&y.v+v<=350).sort((p,q)=>p.v-q.v)[0];if(!x){ok=false;break}x.s.push(v);x.v+=v}
+   if(ok){c.forEach(y=>{const d=[];for(let i=0;i<y.s.length;i+=2)d.push(y.s.slice(i,i+2));cells.push(d)});break}}}
+ const pcs=cells.map(d=>P('pf',60,[],{dr:d,det})),g=[],m=pcs.length;let i=0;
+ if(m%2){g.push({p:[pcs[0],sp(20)]});i=1}
+ for(;i<m;i+=2)g.push({p:[pcs[i],sp(20),pcs[i+1]]});
+ return{g,kv:cells.map(d=>d.flat().reduce((s,v)=>s+v,0))}}
+function score(bs,ty){const l=bs.map(b=>b.cap-b.used);let s=(l.reduce((a,b)=>a+b,0)-Math.max(...l))*3;
+ bs.forEach(b=>{if(!b.items.length)s+=1e3;else if(ty>1&&b.items.length>1&&new Set(b.items.map(i=>i.t)).size===1)s+=8});return s}
+function tryPack(it,b0,n){let best=null,bs=1e9;const ty=new Set(it.map(i=>i.t)).size;
+ for(let a=0;a<n;a++){const bins=b0.map(b=>({cap:b.cap,sh:b.sh,used:0,items:[]})),arr=it.slice().sort((x,y)=>y.h-x.h||Math.random()-.5);
+  if(a)for(let s=0;s<arr.length/3;s++){const i=Math.random()*arr.length|0,j=Math.random()*arr.length|0;[arr[i],arr[j]]=[arr[j],arr[i]]}
+  let ok=true;for(const x of arr){const c=bins.filter(b=>b.used+x.h<=b.cap&&(!b.sh||x.sh));if(!c.length){ok=false;break}
+   const b=Math.random()<.7?c.reduce((p,q)=>p.cap-p.used<=q.cap-q.used?p:q):c[Math.random()*c.length|0];b.items.push(x);b.used+=x.h}
+  if(!ok)continue;const sc=score(bins,ty);if(sc<bs){bs=sc;best=bins}}
+ return best}
+function fit(it,s){if(!it.length)return Array.from({length:s},()=>({sh:1,items:[],used:0,cap:60}));
+ const sum=it.reduce((a,i)=>a+i.h,0);
+ for(let k=Math.max(0,Math.ceil((sum-60*s)/165));k<=Math.ceil(sum/15)+1;k++){const b0=[...Array(s).fill({cap:60,sh:1}),...Array(k).fill({cap:165,sh:0})];
+  if(!b0.length)continue;const r=tryPack(it,b0,250);if(r)return r}
+ return null}
+function section(sec,fi,det,f4){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
+ BRK.forEach(t=>{const q=sec.q[t]||0;for(let i=0;i<q;i++)HT[t]?it.push({t,h:HT[t][fi],sh:EL(t)}):ups.push(t)});
+ let pfp=null;const pt=sec.pf;
+ if(pt&&pt!=='No')HT[pt]?it.push({t:pt,h:HT[pt][fi],sh:EL(pt),pf:1}):pfp=P('up',UW[pt],[pt,'PF']);
+ const el=ups.filter(EG).sort((a,b)=>(a==='XT7')-(b==='XT7')),ot=ups.filter(t=>!EG(t));let best=null;
+ for(let s=0;s<=(f4?0:el.length);s++){const b=fit(it,s);if(!b||b.some(x=>!x.items.length))continue;
+  const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+60*nc+40*(f4?nc:Math.ceil(nc/2));
+  if(!best||wd<best.wd||(wd===best.wd&&nc<best.nc))best={s,b,wd,nc}}
+ const ps=pfc(sec,det),cl=[];let si=0;
+ best.b.forEach(b=>{const c={};b.items.filter(i=>!i.pf).forEach(i=>c[i.t]=(c[i.t]||0)+1);
+  const ln=Object.keys(c).sort((a,z)=>BRK.indexOf(z)-BRK.indexOf(a)).map(t=>c[t]+' '+t),pf=b.items.some(i=>i.pf);
+  if(pf)ln.unshift('PF '+pt);if(b.sh)ln.unshift(el[si++]);cl.push({pc:P('xt',60,ln),u:b.used,pf:+pf,sh:+b.sh})});
+ cl.sort((a,z)=>z.pf-a.pf||a.sh-z.sh||a.u-z.u);
+ const g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
+ const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
+ return{seq:[...ps.g,...(pfp?[{p:[pfp]}]:[]),...g,...st],d:[...ps.kv.map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pfp?['PF breaker: '+pt]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
+const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
+function build(pn){const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice(0,SCH[pn.scheme]).map(s=>section(s,fi,pn.det,f4)),I=pn.inc,A=inc;let sg;
+ switch(pn.scheme){
+ case'1 incomer':sg=[{n:'Incomer',g:A(I[0],'Incomer 1')},{n:'Section 1',g:rev(S[0].seq)}];break;
+ case'1 out of 2':sg=[{n:'Incomers 1 and 2',g:[...A(I[0],'Incomer 1'),...A(I[1],'Incomer 2')]},{n:'Section 1',g:rev(S[0].seq)}];break;
+ case'1 out of 2 with coupler':sg=[{n:'Section 1',g:S[0].seq},{n:'Incomer 1, Coupler, Incomer 2',g:[...A(I[0],'Incomer 1','R'),...A(I[2],'Coupler'),...A(I[1],'Incomer 2')]},{n:'Section 2',g:rev(S[1].seq)}];break;
+ case'2 out of 3 with 1 coupler':sg=[{n:'Section 1',g:S[0].seq},{n:'Incomers 1, 2, Coupler, Incomer 3',g:[...A(I[0],'Incomer 1'),...A(I[1],'Incomer 2','R'),...A(I[2],'Coupler'),...A(I[3],'Incomer 3')]},{n:'Section 2',g:rev(S[1].seq)}];break;
+ default:sg=[{n:'Section 1',g:S[0].seq},{n:'Incomer 1, Coupler 1, Incomer 2',g:[...A(I[0],'Incomer 1','R'),...A(I[2],'Coupler 1'),...A(I[1],'Incomer 2')]},{n:'Section 2',g:rev(S[1].seq)},{n:'Coupler 2, Incomer 3',g:[...A(I[4],'Coupler 2'),...A(I[3],'Incomer 3','L')]},{n:'Section 3',g:rev(S[2].seq)}]}
+ const st={t:0,c:0,r:0};sg.forEach(s=>s.g.forEach(g=>g.p.forEach(p=>{p.e=(p.k!=='sp'||p.riser)?9.9:0;st.t+=p.w+p.e;if(p.k!=='sp')st.c++;if(p.riser)st.r++})));st.t=Math.round(st.t*10)/10;
+ return{sg,st,sd:S.map((s,i)=>({n:'Section '+(i+1),l:s.d}))}}
+function check(pn){if(!(pn.scheme in SCH))return'Choose a scheme (cell B4 in the sheet).';if(!FM.includes(pn.form))return'Choose a form (cell B5 in the sheet).';
+ const n=[1,pn.scheme!=='1 incomer',/coupler/.test(pn.scheme),/^2 out/.test(pn.scheme),pn.scheme.endsWith('2 couplers')],nm=['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'];
+ for(let i=0;i<5;i++)if(n[i]&&!pn.inc[i])return'Choose the type of '+nm[i]+'.';return''}
+const fm=n=>String(Math.round(n*10)/10),lab=g=>{const a=g.p.reduce((s,p)=>s+p.w,0),e=g.p.reduce((s,p)=>s+(p.e||0),0);return g.p.length>1||e?fm(a+e)+(g.p.length>1?' ('+g.p.map(p=>p.w).join('+')+(e?'+'+fm(e):'')+')':''):String(a)};
+function paint(sg,d){let x=X0;
+ sg.forEach(s=>{const sx=x;let sw=0;
+  s.g.forEach(g=>{const gx=x;let gw=0;
+   g.p.forEach(c=>{const w=c.w+(c.e||0);
+    if(c.k==='pf'){for(let i=0;i<4;i++){const y=Y0+i*40,r=c.dr[i];
+      if(!r)d.rect(x,y,w,40,'pf');
+      else if(c.det&&r.length===1&&r[0]===50){d.rect(x,y,w,40,'pf');d.text('50+D',x+w/2,y+20,'pf')}
+      else r.concat([0,0]).slice(0,2).forEach((v,j)=>{d.rect(x+j*w/2,y,w/2,40,'pf');if(v)d.text(v+(c.det?'+D':''),x+j*w/2+w/4,y+20,'pf')})}}
+    else{d.rect(x,Y0,w,H,c.k);const n=c.lines.length;c.lines.forEach((t,i)=>d.text(t,x+w/2,Y0+H/2+(i-(n-1)/2)*18,c.k))}
+    x+=w;gw+=w});
+   d.line(gx+2,Y0+H+6,gx+gw-2);d.text(lab(g),gx+gw/2,Y0+H+22,'n');sw+=gw});
+  d.text(s.n+': '+fm(sw)+' cm',sx,20,'h')})}
+//U
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),NS='http://www.w3.org/2000/svg';
+const ns=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e};
+const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));let PN=[];
+const EX={name:'EXAMPLE',scheme:'1 out of 2 with coupler',form:'2b',det:true,inc:['E6.2','E6.2','E6.2','',''],secs:[0,1].map(()=>({pf:'XT7',p50:6,p25:4,q:{XT2:10,XT4:5,XT5:3,'E2.2':1}}))};
+function parse(ws,nm){const R=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),v=(s,c=1)=>{const i=R.findIndex(r=>String(r[0]).trim().toLowerCase()===s.toLowerCase());return i<0?'':R[i][c]};
+ const sc=String(v('Scheme')).trim(),name=String(v('Panel name')).trim();if(!sc&&!name)return null;
+ return{name:name||nm,scheme:sc,form:String(v('Form')).trim().toLowerCase(),det:/^y/i.test(String(v('Detuned reactor'))),
+  inc:['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'].map(s=>canon(v(s))),
+  secs:[1,2,3].map(c=>({pf:canon(v('PF breaker',c))||'No',p50:+v('PFC 50 kvar steps',c)||0,p25:+v('PFC 25 kvar steps',c)||0,q:Object.fromEntries(BRK.map(b=>[b,+v(b,c)||0]))}))}}
+function pdf(list){const J=window.jspdf.jsPDF;let doc;
+ list.forEach(pn=>{const r=pn._r;if(!r)return;const nl=r.sd.reduce((a,s)=>a+s.l.length+1,0),W=Math.max((r.st.t+2*X0)*K,560),oy=60,dh=(Y0+H+34)*K,Hh=oy+dh+30+nl*12;
+  const o=W>=Hh?'l':'p';if(!doc)doc=new J({unit:'pt',format:[W,Hh],orientation:o});else doc.addPage([W,Hh],o);
+  doc.setFont(undefined,'bold');doc.setTextColor(20);doc.setFontSize(14);doc.text(pn.name+': '+pn.scheme+', Form '+pn.form+(pn.det?', detuned 7%':''),X0*K,26);
+  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text(r.st.c+' cells + '+r.st.r+' riser cell(s), total length '+r.st.t+' cm',X0*K,44);
+  paint(r.sg,{rect:(x,y,w,h,k)=>{doc.setFillColor(...rgb(COL[k][0]));doc.setDrawColor(...rgb(COL[k][1]));doc.setLineWidth(.5);doc.rect(x*K,oy+y*K,w*K,h*K,'FD')},
+   text:(t,x,y,k)=>{doc.setTextColor(...(COL[k]?rgb(COL[k][2]):[60,60,60]));doc.setFontSize(k==='h'?10:9);doc.text(String(t),x*K,oy+y*K,{align:k==='h'?'left':'center',baseline:'middle'})},
+   line:(x1,y,x2)=>{doc.setDrawColor(150);doc.setLineWidth(.4);doc.line(x1*K,oy+y*K,x2*K,oy+y*K)}});
+  let y=oy+dh+14;doc.setTextColor(20);doc.setFontSize(9);
+  r.sd.forEach(s=>{doc.setFont(undefined,'bold');doc.text(s.n,X0*K,y);y+=12;doc.setFont(undefined,'normal');s.l.forEach(l=>{doc.text(l,X0*K+10,y);y+=12})})});
+ if(doc)doc.save(list.length>1?'panels.pdf':(list[0].name||'panel')+'.pdf')}
+function card(pn){const el=document.createElement('section');el.className='card';let r=null,msg=check(pn);
+ if(!msg)try{r=build(pn);pn._r=r}catch(e){msg='Could not size this panel: '+e.message}
+ el.innerHTML='<div class="top"><div><h2>'+esc(pn.name)+'</h2><p>'+esc(pn.scheme||'No scheme chosen')+'</p></div><div class="ctl"><label>Form <select>'+FM.map(f=>'<option'+(f===pn.form?' selected':'')+'>'+f+'</option>').join('')+'</select></label>'+(r?'<button class="pdf" title="Download PDF"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3M6 9h4M6 11.5h4"/></svg>PDF</button>':'')+'</div></div>';
+ el.querySelector('select').onchange=e=>{pn.form=e.target.value;el.replaceWith(card(pn))};
+ if(!r){el.insertAdjacentHTML('beforeend','<p class="warn">'+esc(msg)+'</p>');return el}
+ el.querySelector('.pdf').onclick=()=>pdf([pn]);
+ el.insertAdjacentHTML('beforeend','<p class="sum"><b>'+r.st.c+' cells</b> + '+r.st.r+' riser cell(s). Total length: <b>'+r.st.t+' cm</b></p><div class="sc"></div><p class="lg">1 px = 1 cm. Every cell includes 9.9 cm (99 mm) outer allowance. Blue: breakers and incomers. Green: XT cells. Amber: PFC drawers (D = detuned). Grey: compartment, copper, riser.</p><details><summary>Cells per section</summary>'+r.sd.map(s=>'<b>'+s.n+'</b><ul>'+s.l.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>').join('')+'</details>');
+ const W=r.st.t+2*X0,Ht=Y0+H+34,s=ns('svg',{width:W,height:Ht,viewBox:'0 0 '+W+' '+Ht});
+ paint(r.sg,{rect:(x,y,w,h,k)=>s.append(ns('rect',{x,y,width:w,height:h,fill:COL[k][0],stroke:COL[k][1],'stroke-width':.6})),
+  text:(t,x,y,k)=>s.append(ns('text',{x,y,'text-anchor':k==='h'?'start':'middle','dominant-baseline':'central','font-size':12,fill:COL[k]?COL[k][2]:(k==='h'?'#4a5866':'#333')},t)),
+  line:(x1,y,x2)=>s.append(ns('line',{x1,x2,y1:y,y2:y,stroke:'#999','stroke-width':.5}))});
+ el.querySelector('.sc').append(s);return el}
+function render(){const o=$('#out');o.innerHTML='';PN.forEach(p=>o.append(card(p)));$('#all').hidden=!PN.length;if(!PN.length)o.innerHTML='<p class="note">No panel found. Fill a Panel sheet (choose a scheme first) and upload the file again.</p>'}
+$('#f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const wb=XLSX.read(r.result,{type:'array'});PN=[];wb.SheetNames.forEach(n=>{if(/^(panel|example)/i.test(n)){const p=parse(wb.Sheets[n],n);if(p)PN.push(p)}});render()}catch(x){$('#out').innerHTML='<p class="note">Could not read this file. Use Sizing_Input_v2.xlsx.</p>'}};r.readAsArrayBuffer(f)};
+$('#ex').onclick=()=>{PN=[JSON.parse(JSON.stringify(EX))];render()};
+$('#all').onclick=()=>pdf(PN);
+</script></body></html>
