@@ -51,24 +51,27 @@ function chain(pcs,pm,tail){const a=pm?[...pcs,pm]:pcs.slice(),n=a.length,g=[];l
 function score(bs,ty){const l=bs.map(b=>b.cap-b.used);let s=(l.reduce((a,b)=>a+b,0)-Math.max(...l))*3;
  bs.forEach(b=>{if(!b.items.length)s+=1e3;else if(ty>1&&b.items.length>1&&new Set(b.items.map(i=>i.t)).size===1)s+=8});return s}
 function tryPack(it,b0,n){let best=null,bs=1e9;const ty=new Set(it.map(i=>i.t)).size;
- for(let a=0;a<n;a++){const bins=b0.map(b=>({cap:b.cap,sh:b.sh,used:0,items:[]})),arr=it.slice().sort((x,y)=>y.h-x.h||Math.random()-.5);
+ for(let a=0;a<n;a++){const bins=b0.map(b=>({cap:b.cap,sh:b.sh,closed:b.closed,used:b.used||0,items:(b.items||[]).slice()})),arr=it.slice().sort((x,y)=>y.h-x.h||Math.random()-.5);
   if(a)for(let s=0;s<arr.length/3;s++){const i=Math.random()*arr.length|0,j=Math.random()*arr.length|0;[arr[i],arr[j]]=[arr[j],arr[i]]}
-  let ok=true;for(const x of arr){const c=bins.filter(b=>b.used+x.h<=b.cap&&(!b.sh||x.sh));if(!c.length){ok=false;break}
+  let ok=true;for(const x of arr){const c=bins.filter(b=>!b.closed&&b.used+x.h<=b.cap&&(!b.sh||x.sh));if(!c.length){ok=false;break}
    const b=Math.random()<.7?c.reduce((p,q)=>p.cap-p.used<=q.cap-q.used?p:q):c[Math.random()*c.length|0];b.items.push(x);b.used+=x.h}
   if(!ok)continue;const sc=score(bins,ty);if(sc<bs){bs=sc;best=bins}}
  return best}
-function fit(it,s){if(!it.length)return Array.from({length:s},()=>({sh:1,items:[],used:0,cap:60}));
- const sum=it.reduce((a,i)=>a+i.h,0);
- for(let k=Math.max(0,Math.ceil((sum-60*s)/165));k<=Math.ceil(sum/15)+1;k++){const b0=[...Array(s).fill({cap:60,sh:1}),...Array(k).fill({cap:165,sh:0})];
+function fit(it,s,pre){const pb=pre?[pre]:[];
+ if(!it.length)return[...pb.map(b=>Object.assign({},b,{items:b.items.slice()})),...Array.from({length:s},()=>({sh:1,items:[],used:0,cap:60}))];
+ const sum=it.reduce((a,i)=>a+i.h,0),fr=pre&&!pre.closed?pre.cap-pre.used:0;
+ for(let k=Math.max(0,Math.ceil((sum-60*s-fr)/165));k<=Math.ceil(sum/15)+1;k++){const b0=[...pb,...Array(s).fill({cap:60,sh:1}),...Array(k).fill({cap:165,sh:0})];
   if(!b0.length)continue;const r=tryPack(it,b0,250);if(r)return r}
  return null}
-const pt0=s=>s.pf||'';
-function section(sec,fi,det,f4){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
+function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
  BRK.forEach(t=>{const q=sec.q[t]||0;for(let i=0;i<q;i++)HT[t]?it.push({t,h:HT[t][fi],sh:EL(t)}):ups.push(t)});
- let pfp=null;const pt=sec.pf,ps=pfc(sec,det,/^XT[1-5]$/.test(pt0(sec))?2:1),hd=!!ps.pd;
- if(pt&&pt!=='No')HT[pt]?it.push({t:pt,h:HT[pt][fi]+(hd?40*ps.pd.length:0),sh:EL(pt),pf:1}):pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],hd?{pd:ps.pd,det}:{});
+ let pfp=null,pre=null;const pt=sec.pf,ps=pfc(sec,det,nm),hd=!!ps.pd;
+ if(pt&&pt!=='No'){if(HT[pt]){const h=HT[pt][fi];
+   if(hd){pre={cap:120,closed:!/^XT[12]$/.test(pt),sh:0,used:h+40*ps.pd.length,items:[{t:pt,h:h+40*ps.pd.length,sh:0,pf:1}]};if(pre.used>120)return null}
+   else it.push({t:pt,h,sh:EL(pt),pf:1})}
+  else pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],hd?{pd:ps.pd,det}:{})}
  const el=ups.filter(EG).sort((a,b)=>(a==='XT7')-(b==='XT7')),ot=ups.filter(t=>!EG(t));let best=null;
- for(let s=0;s<=(f4?0:el.length);s++){const b=fit(it,s);if(!b||b.some(x=>!x.items.length))continue;
+ for(let s=0;s<=(f4?0:el.length);s++){const b=fit(it,s,pre);if(!b||b.some(x=>!x.items.length))continue;
   const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+60*nc+40*(f4?nc:Math.ceil(nc/2));
   if(!best||wd<best.wd||(wd===best.wd&&nc<best.nc))best={s,b,wd,nc}}
  const cl=[];let si=0;
@@ -79,7 +82,8 @@ function section(sec,fi,det,f4){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||
  let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
  const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
  const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
- return{seq:[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st],d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
+ const seq=[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st];return{seq,hd,w:seq.reduce((a,x)=>a+x.p.reduce((q,p)=>q+p.w+(p.k!=='sp'?9.9:0),0),0),d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
+function section(sec,fi,det,f4){const A=sec1(sec,fi,det,f4,0),B=sec1(sec,fi,det,f4,/^XT[1-5]$/.test(sec.pf||'')?2:1);return B&&B.hd&&B.w<A.w?B:A}
 const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
 function build(pn){const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice(0,SCH[pn.scheme]).map(s=>section(s,fi,pn.det,f4)),I=pn.inc,A=inc;let sg;
  switch(pn.scheme){
