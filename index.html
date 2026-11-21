@@ -31,16 +31,23 @@ function inc(t,role,rs){const w=UW[t],L=[role,t];if(!rs)return[{p:[P('up',w,L)]}
  if(/^XT[56]$|^XT7$|^E1\.2$/.test(t))return[{p:[P('up',60,L.concat('riser'))]}];
  const e=t==='E6.2'?40:20,c=P('up',w,L),s=P('sp',e,[],t==='E6.2'?{riser:1}:{});
  return[{lab:(w+e)+' ('+(rs==='R'?w+'+'+e:e+'+'+w)+')',p:rs==='R'?[c,s]:[s,c]}]}
-function pfc(sec,det){const a=sec.p50||0,b=sec.p25||0,cells=[];if(!sec.pf||sec.pf==='No'||!(a+b))return{g:[],kv:[]};
- if(det){const d=[];for(let i=0;i<a;i++)d.push([50]);for(let i=0;i<b;i+=2)d.push(b-i>1?[25,25]:[25]);for(let i=0;i<d.length;i+=4)cells.push(d.slice(i,i+4))}
- else{const st=[...Array(a).fill(50),...Array(b).fill(25)],tot=a*50+b*25;
-  for(let k=Math.max(Math.ceil(st.length/8),Math.ceil(tot/350));;k++){const c=Array.from({length:k},()=>({s:[],v:0}));let ok=true;
-   for(const v of st){const x=c.filter(y=>y.s.length<8&&y.v+v<=350).sort((p,q)=>p.v-q.v)[0];if(!x){ok=false;break}x.s.push(v);x.v+=v}
-   if(ok){c.forEach(y=>{const d=[];for(let i=0;i<y.s.length;i+=2)d.push(y.s.slice(i,i+2));cells.push(d)});break}}}
- const pcs=cells.map(d=>P('pf',60,[],{dr:d,det})),g=[],m=pcs.length;let i=0;
- if(m%2){g.push({p:[pcs[0],sp(20)]});i=1}
- for(;i<m;i+=2)g.push({p:[pcs[i],sp(20),pcs[i+1]]});
- return{g,kv:cells.map(d=>d.flat().reduce((s,v)=>s+v,0))}}
+function nd(a,b){if(!(a+b))return[];const st=[...Array(a).fill(50),...Array(b).fill(25)],tot=a*50+b*25;
+ for(let k=Math.max(Math.ceil(st.length/8),Math.ceil(tot/350));;k++){const c=Array.from({length:k},()=>({s:[],v:0}));let ok=true;
+  for(const v of st){const x=c.filter(y=>y.s.length<8&&y.v+v<=350).sort((p,q)=>p.v-q.v)[0];if(!x){ok=false;break}x.s.push(v);x.v+=v}
+  if(ok)return c.map(y=>{const d=[];for(let i=0;i<y.s.length;i+=2)d.push(y.s.slice(i,i+2));return d})}}
+function pfc(sec,det,nm){const a=sec.p50||0,b=sec.p25||0;if(!sec.pf||sec.pf==='No'||!(a+b))return{cells:[],pd:null};
+ if(det){const d=[];for(let i=0;i<a;i++)d.push([50]);for(let i=0;i<b;i+=2)d.push(b-i>1?[25,25]:[25]);
+  const r=d.length%4,pd=r>0&&r<=nm?d.splice(d.length-r,r):null,cells=[];for(let i=0;i<d.length;i+=4)cells.push(d.slice(i,i+4));return{cells,pd}}
+ const k0=nd(a,b).length;let best=null;
+ for(let x=0;x<=Math.min(a,2*nm);x++)for(let y=0;y<=Math.min(b,2*nm-x);y++){if(!(x+y))continue;
+  const n=nd(a-x,b-y),kv=x*50+y*25;if(n.length<k0&&(!best||kv<best.kv))best={x,y,n,kv}}
+ if(!best)return{cells:nd(a,b),pd:null};
+ const st=[...Array(best.x).fill(50),...Array(best.y).fill(25)],pd=[];for(let i=0;i<st.length;i+=2)pd.push(st.slice(i,i+2));
+ return{cells:best.n,pd}}
+function chain(pcs,pm,tail){const a=pm?[...pcs,pm]:pcs.slice(),n=a.length,g=[];let i=0;if(!n)return g;
+ if(n%2){g.push(n===1&&pm?{p:[sp(20),pm,...tail]}:{p:[a[0],sp(20)]});i=1}
+ for(;i<n;i+=2)g.push({p:[a[i],sp(20),a[i+1]]});
+ if(pm&&n>1&&tail.length)g[g.length-1].p.push(...tail);return g}
 function score(bs,ty){const l=bs.map(b=>b.cap-b.used);let s=(l.reduce((a,b)=>a+b,0)-Math.max(...l))*3;
  bs.forEach(b=>{if(!b.items.length)s+=1e3;else if(ty>1&&b.items.length>1&&new Set(b.items.map(i=>i.t)).size===1)s+=8});return s}
 function tryPack(it,b0,n){let best=null,bs=1e9;const ty=new Set(it.map(i=>i.t)).size;
@@ -55,22 +62,24 @@ function fit(it,s){if(!it.length)return Array.from({length:s},()=>({sh:1,items:[
  for(let k=Math.max(0,Math.ceil((sum-60*s)/165));k<=Math.ceil(sum/15)+1;k++){const b0=[...Array(s).fill({cap:60,sh:1}),...Array(k).fill({cap:165,sh:0})];
   if(!b0.length)continue;const r=tryPack(it,b0,250);if(r)return r}
  return null}
+const pt0=s=>s.pf||'';
 function section(sec,fi,det,f4){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
  BRK.forEach(t=>{const q=sec.q[t]||0;for(let i=0;i<q;i++)HT[t]?it.push({t,h:HT[t][fi],sh:EL(t)}):ups.push(t)});
- let pfp=null;const pt=sec.pf;
- if(pt&&pt!=='No')HT[pt]?it.push({t:pt,h:HT[pt][fi],sh:EL(pt),pf:1}):pfp=P('up',UW[pt],[pt,'PF']);
+ let pfp=null;const pt=sec.pf,ps=pfc(sec,det,/^XT[1-5]$/.test(pt0(sec))?2:1),hd=!!ps.pd;
+ if(pt&&pt!=='No')HT[pt]?it.push({t:pt,h:HT[pt][fi]+(hd?40*ps.pd.length:0),sh:EL(pt),pf:1}):pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],hd?{pd:ps.pd,det}:{});
  const el=ups.filter(EG).sort((a,b)=>(a==='XT7')-(b==='XT7')),ot=ups.filter(t=>!EG(t));let best=null;
  for(let s=0;s<=(f4?0:el.length);s++){const b=fit(it,s);if(!b||b.some(x=>!x.items.length))continue;
   const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+60*nc+40*(f4?nc:Math.ceil(nc/2));
   if(!best||wd<best.wd||(wd===best.wd&&nc<best.nc))best={s,b,wd,nc}}
- const ps=pfc(sec,det),cl=[];let si=0;
+ const cl=[];let si=0;
  best.b.forEach(b=>{const c={};b.items.filter(i=>!i.pf).forEach(i=>c[i.t]=(c[i.t]||0)+1);
   const ln=Object.keys(c).sort((a,z)=>BRK.indexOf(z)-BRK.indexOf(a)).map(t=>c[t]+' '+t),pf=b.items.some(i=>i.pf);
   if(pf)ln.unshift('PF '+pt);if(b.sh)ln.unshift(el[si++]);cl.push({pc:P('xt',60,ln),u:b.used,pf:+pf,sh:+b.sh})});
  cl.sort((a,z)=>z.pf-a.pf||a.sh-z.sh||a.u-z.u);
- const g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
+ let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
+ const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
  const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
- return{seq:[...ps.g,...(pfp?[{p:[pfp]}]:[]),...g,...st],d:[...ps.kv.map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pfp?['PF breaker: '+pt]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
+ return{seq:[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st],d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
 const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
 function build(pn){const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice(0,SCH[pn.scheme]).map(s=>section(s,fi,pn.det,f4)),I=pn.inc,A=inc;let sg;
  switch(pn.scheme){
@@ -85,15 +94,14 @@ function check(pn){if(!(pn.scheme in SCH))return'Choose a scheme (cell B4 in the
  const n=[1,pn.scheme!=='1 incomer',/coupler/.test(pn.scheme),/^2 out/.test(pn.scheme),pn.scheme.endsWith('2 couplers')],nm=['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'];
  for(let i=0;i<5;i++)if(n[i]&&!pn.inc[i])return'Choose the type of '+nm[i]+'.';return''}
 const fm=n=>String(Math.round(n*10)/10),lab=g=>{const a=g.p.reduce((s,p)=>s+p.w,0),e=g.p.reduce((s,p)=>s+(p.e||0),0);return g.p.length>1||e?fm(a+e)+(g.p.length>1?' ('+g.p.map(p=>p.w).join('+')+(e?'+'+fm(e):'')+')':''):String(a)};
+function dw(d,x,y,w,r,det){if(det&&r.length===1&&r[0]===50){d.rect(x,y,w,40,'pf');d.text('50+D',x+w/2,y+20,'pf')}
+ else r.concat([0,0]).slice(0,2).forEach((v,j)=>{d.rect(x+j*w/2,y,w/2,40,'pf');if(v)d.text(v+(det?'+D':''),x+j*w/2+w/4,y+20,'pf')})}
 function paint(sg,d){let x=X0;
  sg.forEach(s=>{const sx=x;let sw=0;
   s.g.forEach(g=>{const gx=x;let gw=0;
    g.p.forEach(c=>{const w=c.w+(c.e||0);
-    if(c.k==='pf'){for(let i=0;i<4;i++){const y=Y0+i*40,r=c.dr[i];
-      if(!r)d.rect(x,y,w,40,'pf');
-      else if(c.det&&r.length===1&&r[0]===50){d.rect(x,y,w,40,'pf');d.text('50+D',x+w/2,y+20,'pf')}
-      else r.concat([0,0]).slice(0,2).forEach((v,j)=>{d.rect(x+j*w/2,y,w/2,40,'pf');if(v)d.text(v+(c.det?'+D':''),x+j*w/2+w/4,y+20,'pf')})}}
-    else{d.rect(x,Y0,w,H,c.k);const n=c.lines.length;c.lines.forEach((t,i)=>d.text(t,x+w/2,Y0+H/2+(i-(n-1)/2)*18,c.k))}
+    if(c.k==='pf'){for(let i=0;i<4;i++){const r=c.dr[i];if(r)dw(d,x,Y0+i*40,w,r,c.det);else d.rect(x,Y0+i*40,w,40,'pf')}}
+    else{const nn=c.pd?c.pd.length:0,hh=H-40*nn;d.rect(x,Y0,w,hh,c.k);const n=c.lines.length;c.lines.forEach((t,i)=>d.text(t,x+w/2,Y0+hh/2+(i-(n-1)/2)*18,c.k));if(nn)c.pd.forEach((r,i)=>dw(d,x,Y0+hh+i*40,w,r,c.det))}
     x+=w;gw+=w});
    d.line(gx+2,Y0+H+6,gx+gw-2);d.text(lab(g),gx+gw/2,Y0+H+22,'n');sw+=gw});
   d.text(s.n+': '+fm(sw)+' cm',sx,20,'h')})}
