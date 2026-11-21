@@ -10,6 +10,7 @@ main{max-width:960px;margin:auto;padding:8px 16px 40px}.card{background:#fff;bor
 .ctl{display:flex;gap:10px;align-items:center}select{font:inherit;padding:4px 6px}.sum{margin:10px 0 8px}
 .sc{overflow-x:auto;border:1px solid #e1e6eb;border-radius:6px;background:#fafbfc}.sc svg{display:block}
 .lg{font-size:12px;color:#4a5866;margin:6px 0}details{margin-top:6px}summary{cursor:pointer}ul{margin:6px 0;padding-left:20px}
+.ct{border-collapse:collapse;margin:8px 0;font-size:13px}.ct th,.ct td{border:1px solid #d3dae1;padding:4px 10px;text-align:left}
 .warn,.note{color:#9a3412;margin:10px 0}.note{padding:0 16px}
 </style></head><body>
 <header><h1>Panel sizing</h1><p>Upload the filled Sizing_Input_v2.xlsx. You get the cell layout, every width and a PDF drawing.</p>
@@ -82,6 +83,7 @@ function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||
  let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
  const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
  const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
+ if(!g.length&&!tail.length){const k=st.findIndex(x=>x.p[0].w===60);if(k>=0)st[k].p.push(sp(20))}
  const seq=[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st];return{seq,hd,w:seq.reduce((a,x)=>a+x.p.reduce((q,p)=>q+p.w+(p.k!=='sp'?9.9:0),0),0),d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
 function section(sec,fi,det,f4){const A=sec1(sec,fi,det,f4,0),B=sec1(sec,fi,det,f4,/^XT[1-5]$/.test(sec.pf||'')?2:1);return B&&B.hd&&B.w<A.w?B:A}
 const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
@@ -93,7 +95,11 @@ function build(pn){const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice
  case'2 out of 3 with 1 coupler':sg=[{n:'Section 1',g:S[0].seq},{n:'Incomers 1, 2, Coupler, Incomer 3',g:[...A(I[0],'Incomer 1'),...A(I[1],'Incomer 2','R'),...A(I[2],'Coupler'),...A(I[3],'Incomer 3')]},{n:'Section 2',g:rev(S[1].seq)}];break;
  default:sg=[{n:'Section 1',g:S[0].seq},{n:'Incomer 1, Coupler 1, Incomer 2',g:[...A(I[0],'Incomer 1','R'),...A(I[2],'Coupler 1'),...A(I[1],'Incomer 2')]},{n:'Section 2',g:rev(S[1].seq)},{n:'Coupler 2, Incomer 3',g:[...A(I[4],'Coupler 2'),...A(I[3],'Incomer 3','L')]},{n:'Section 3',g:rev(S[2].seq)}]}
  const st={t:0,c:0,r:0};sg.forEach(s=>s.g.forEach(g=>g.p.forEach(p=>{p.e=(p.k!=='sp'||p.riser)?9.9:0;st.t+=p.w+p.e;if(p.k!=='sp')st.c++;if(p.riser)st.r++})));st.t=Math.round(st.t*10)/10;
- return{sg,st,sd:S.map((s,i)=>({n:'Section '+(i+1),l:s.d}))}}
+ const U=[];sg.forEach(s=>{const m=/^Section (\d)/.exec(s.n);U.push(...units(m?S[m[1]-1].seq:s.g))});
+ const cn={};U.forEach(u=>{const sum=u.parts.reduce((a,b)=>a+b,0),l=u.riser?'40 (riser cell)':u.parts.length>1?sum+' ('+u.parts.slice().sort((a,b)=>b-a).join('+')+')':String(sum);cn[l]=cn[l]||{n:0,sum,l};cn[l].n++});
+ const ct=Object.values(cn).sort((a,b)=>a.sum-b.sum||a.l.localeCompare(b.l));
+ return{sg,st,ct,dep:pn.amp?(pn.amp>=4000?99.9:79.9):0,sd:S.map((s,i)=>({n:'Section '+(i+1),l:s.d}))}}
+function units(gs){const U=[];gs.forEach(g=>{let cur=null,pend=0;g.p.forEach(p=>{if(p.k==='sp'&&!p.riser){if(cur)cur.parts.push(p.w);else pend=p.w}else{cur={parts:(pend?[pend]:[]).concat(p.w),riser:!!p.riser};pend=0;U.push(cur)}})});return U}
 function check(pn){if(!(pn.scheme in SCH))return'Choose a scheme (cell B4 in the sheet).';if(!FM.includes(pn.form))return'Choose a form (cell B5 in the sheet).';
  const n=[1,pn.scheme!=='1 incomer',/coupler/.test(pn.scheme),/^2 out/.test(pn.scheme),pn.scheme.endsWith('2 couplers')],nm=['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'];
  for(let i=0;i<5;i++)if(n[i]&&!pn.inc[i])return'Choose the type of '+nm[i]+'.';return''}
@@ -110,25 +116,26 @@ function paint(sg,d){let x=X0;
    d.line(gx+2,Y0+H+6,gx+gw-2);d.text(lab(g),gx+gw/2,Y0+H+22,'n');sw+=gw});
   d.text(s.n+': '+fm(sw)+' cm',sx,20,'h')})}
 //U
+const tbl=r=>'<table class="ct"><tr><th>Cell type (cm)</th><th>Outer width (cm)</th><th>Count</th></tr>'+r.ct.map(c=>'<tr><td>'+c.l+'</td><td>'+fm(c.sum+9.9)+'</td><td>'+c.n+'</td></tr>').join('')+'</table>';
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),NS='http://www.w3.org/2000/svg';
 const ns=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e};
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));let PN=[];
-const EX={name:'EXAMPLE',scheme:'1 out of 2 with coupler',form:'2b',det:true,inc:['E6.2','E6.2','E6.2','',''],secs:[0,1].map(()=>({pf:'XT7',p50:6,p25:4,q:{XT2:10,XT4:5,XT5:3,'E2.2':1}}))};
+const EX={name:'EXAMPLE',amp:5000,scheme:'1 out of 2 with coupler',form:'2b',det:true,inc:['E6.2','E6.2','E6.2','',''],secs:[0,1].map(()=>({pf:'XT7',p50:6,p25:4,q:{XT2:10,XT4:5,XT5:3,'E2.2':1}}))};
 function parse(ws,nm){const R=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),v=(s,c=1)=>{const i=R.findIndex(r=>String(r[0]).trim().toLowerCase()===s.toLowerCase());return i<0?'':R[i][c]};
  const sc=String(v('Scheme')).trim(),name=String(v('Panel name')).trim();if(!sc&&!name)return null;
- return{name:name||nm,scheme:sc,form:String(v('Form')).trim().toLowerCase(),det:/^y/i.test(String(v('Detuned reactor'))),
+ return{name:name||nm,amp:+String(v('Panel rating (A)')).replace(/[^0-9]/g,'')||0,scheme:sc,form:String(v('Form')).trim().toLowerCase(),det:/^y/i.test(String(v('Detuned reactor'))),
   inc:['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'].map(s=>canon(v(s))),
   secs:[1,2,3].map(c=>({pf:canon(v('PF breaker',c))||'No',p50:+v('PFC 50 kvar steps',c)||0,p25:+v('PFC 25 kvar steps',c)||0,q:Object.fromEntries(BRK.map(b=>[b,+v(b,c)||0]))}))}}
 function pdf(list){const J=window.jspdf.jsPDF;let doc;
- list.forEach(pn=>{const r=pn._r;if(!r)return;const nl=r.sd.reduce((a,s)=>a+s.l.length+1,0),W=Math.max((r.st.t+2*X0)*K,560),oy=60,dh=(Y0+H+34)*K,Hh=oy+dh+30+nl*12;
+ list.forEach(pn=>{const r=pn._r;if(!r)return;const nl=r.sd.reduce((a,s)=>a+s.l.length+1,0)+r.ct.length+2,W=Math.max((r.st.t+2*X0)*K,560),oy=60,dh=(Y0+H+34)*K,Hh=oy+dh+30+nl*12;
   const o=W>=Hh?'l':'p';if(!doc)doc=new J({unit:'pt',format:[W,Hh],orientation:o});else doc.addPage([W,Hh],o);
   doc.setFont(undefined,'bold');doc.setTextColor(20);doc.setFontSize(14);doc.text(pn.name+': '+pn.scheme+', Form '+pn.form+(pn.det?', detuned 7%':''),X0*K,26);
-  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text(r.st.c+' cells + '+r.st.r+' riser cell(s), total length '+r.st.t+' cm',X0*K,44);
+  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text(r.st.c+' cells + '+r.st.r+' riser cell(s). Width '+r.st.t+' cm, Depth '+(r.dep||'?')+' cm'+(pn.amp?', '+pn.amp+' A':''),X0*K,44);
   paint(r.sg,{rect:(x,y,w,h,k)=>{doc.setFillColor(...rgb(COL[k][0]));doc.setDrawColor(...rgb(COL[k][1]));doc.setLineWidth(.5);doc.rect(x*K,oy+y*K,w*K,h*K,'FD')},
    text:(t,x,y,k)=>{doc.setTextColor(...(COL[k]?rgb(COL[k][2]):[60,60,60]));doc.setFontSize(k==='h'?10:9);doc.text(String(t),x*K,oy+y*K,{align:k==='h'?'left':'center',baseline:'middle'})},
    line:(x1,y,x2)=>{doc.setDrawColor(150);doc.setLineWidth(.4);doc.line(x1*K,oy+y*K,x2*K,oy+y*K)}});
   let y=oy+dh+14;doc.setTextColor(20);doc.setFontSize(9);
-  r.sd.forEach(s=>{doc.setFont(undefined,'bold');doc.text(s.n,X0*K,y);y+=12;doc.setFont(undefined,'normal');s.l.forEach(l=>{doc.text(l,X0*K+10,y);y+=12})})});
+  r.sd.forEach(s=>{doc.setFont(undefined,'bold');doc.text(s.n,X0*K,y);y+=12;doc.setFont(undefined,'normal');s.l.forEach(l=>{doc.text(l,X0*K+10,y);y+=12})});doc.setFont(undefined,'bold');doc.text('Cells by type: nominal width, outer width (+9.9 each cell), count',X0*K,y);y+=12;doc.setFont(undefined,'normal');r.ct.forEach(c=>{doc.text(c.l+'  |  outer '+fm(c.sum+9.9)+' cm  |  '+c.n,X0*K+10,y);y+=12})});
  if(doc)doc.save(list.length>1?'panels.pdf':(list[0].name||'panel')+'.pdf')}
 function card(pn){const el=document.createElement('section');el.className='card';let r=null,msg=check(pn);
  if(!msg)try{r=build(pn);pn._r=r}catch(e){msg='Could not size this panel: '+e.message}
@@ -136,7 +143,7 @@ function card(pn){const el=document.createElement('section');el.className='card'
  el.querySelector('select').onchange=e=>{pn.form=e.target.value;el.replaceWith(card(pn))};
  if(!r){el.insertAdjacentHTML('beforeend','<p class="warn">'+esc(msg)+'</p>');return el}
  el.querySelector('.pdf').onclick=()=>pdf([pn]);
- el.insertAdjacentHTML('beforeend','<p class="sum"><b>'+r.st.c+' cells</b> + '+r.st.r+' riser cell(s). Total length: <b>'+r.st.t+' cm</b></p><div class="sc"></div><p class="lg">1 px = 1 cm. Every cell includes 9.9 cm (99 mm) outer allowance. Blue: breakers and incomers. Green: XT cells. Amber: PFC drawers (D = detuned). Grey: compartment, copper, riser.</p><details><summary>Cells per section</summary>'+r.sd.map(s=>'<b>'+s.n+'</b><ul>'+s.l.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>').join('')+'</details>');
+ el.insertAdjacentHTML('beforeend','<p class="sum"><b>'+r.st.c+' cells</b> + '+r.st.r+' riser cell(s). Width: <b>'+r.st.t+' cm</b>, Depth: <b>'+(r.dep?r.dep+' cm':'choose the panel rating')+'</b></p>'+tbl(r)+'<div class="sc"></div><p class="lg">1 px = 1 cm. Every cell includes 9.9 cm (99 mm) outer allowance. Blue: breakers and incomers. Green: XT cells. Amber: PFC drawers (D = detuned). Grey: compartment, copper, riser.</p><details><summary>Cells per section</summary>'+r.sd.map(s=>'<b>'+s.n+'</b><ul>'+s.l.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>').join('')+'</details>');
  const W=r.st.t+2*X0,Ht=Y0+H+34,s=ns('svg',{width:W,height:Ht,viewBox:'0 0 '+W+' '+Ht});
  paint(r.sg,{rect:(x,y,w,h,k)=>s.append(ns('rect',{x,y,width:w,height:h,fill:COL[k][0],stroke:COL[k][1],'stroke-width':.6})),
   text:(t,x,y,k)=>s.append(ns('text',{x,y,'text-anchor':k==='h'?'start':'middle','dominant-baseline':'central','font-size':12,fill:COL[k]?COL[k][2]:(k==='h'?'#4a5866':'#333')},t)),
