@@ -83,7 +83,7 @@ function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||
  let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
  const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
  const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
- if(!g.length&&!tail.length){const k=st.findIndex(x=>x.p[0].w===60);if(k>=0)st[k].p.push(sp(20))}
+ if(!g.length&&!tail.length){const k=Math.ceil(st.length/4);let c=0;st.forEach(x=>{if(c<k&&x.p[0].w===60){x.p.push(sp(20));c++}})}
  const seq=[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st];return{seq,hd,w:seq.reduce((a,x)=>a+x.p.reduce((q,p)=>q+p.w+(p.k!=='sp'?9.9:0),0),0),d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
 function section(sec,fi,det,f4){const A=sec1(sec,fi,det,f4,0),B=sec1(sec,fi,det,f4,/^XT[1-5]$/.test(sec.pf||'')?2:1);return B&&B.hd&&B.w<A.w?B:A}
 const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
