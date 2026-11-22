@@ -72,13 +72,13 @@ function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||
    else it.push({t:pt,h,sh:EL(pt),pf:1})}
   else pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],hd?{pd:ps.pd,det}:{})}
  const el=ups.filter(EG).sort((a,b)=>(a==='XT7')-(b==='XT7')),ot=ups.filter(t=>!EG(t));let best=null;
- for(let s=0;s<=(f4?0:el.length);s++){const b=fit(it,s,pre);if(!b||b.some(x=>!x.items.length))continue;
-  const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+60*nc+40*(f4?nc:Math.ceil(nc/2));
+ for(let s=0;s<=el.length;s++){const b=fit(it,s,pre);if(!b||b.some(x=>!x.items.length))continue;
+  const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+el.slice(0,s).reduce((a,t)=>a+(f4&&t==='XT7'?40:60),0)+60*(nc-s)+40*(f4?nc:Math.ceil(nc/2));
   if(!best||wd<best.wd||(wd===best.wd&&nc<best.nc))best={s,b,wd,nc}}
  const cl=[];let si=0;
  best.b.forEach(b=>{const c={};b.items.filter(i=>!i.pf).forEach(i=>c[i.t]=(c[i.t]||0)+1);
   const ln=Object.keys(c).sort((a,z)=>BRK.indexOf(z)-BRK.indexOf(a)).map(t=>c[t]+' '+t),pf=b.items.some(i=>i.pf);
-  if(pf)ln.unshift('PF '+pt);if(b.sh)ln.unshift(el[si++]);cl.push({pc:P('xt',60,ln),u:b.used,pf:+pf,sh:+b.sh})});
+  if(pf)ln.unshift('PF '+pt);const ut=b.sh?el[si++]:null;if(ut)ln.unshift(ut);cl.push({pc:P('xt',ut&&f4&&ut==='XT7'?40:60,ln),u:b.used,pf:+pf,sh:+b.sh})});
  cl.sort((a,z)=>z.pf-a.pf||a.sh-z.sh||a.u-z.u);
  let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
  const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
