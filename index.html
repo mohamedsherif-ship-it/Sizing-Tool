@@ -11,16 +11,17 @@ main{max-width:960px;margin:auto;padding:8px 16px 40px}.card{background:#fff;bor
 .sc{overflow-x:auto;border:1px solid #e1e6eb;border-radius:6px;background:#fafbfc}.sc svg{display:block}
 .lg{font-size:12px;color:#4a5866;margin:6px 0}details{margin-top:6px}summary{cursor:pointer}ul{margin:6px 0;padding-left:20px}
 .ct{border-collapse:collapse;margin:8px 0;font-size:13px}.ct th,.ct td{border:1px solid #d3dae1;padding:4px 10px;text-align:left}
+label.sw{font-size:13px;display:flex;gap:4px;align-items:center}button.alt{margin:0}
 .warn,.note{color:#9a3412;margin:10px 0}.note{padding:0 16px}
 </style></head><body>
-<header><h1>Panel sizing</h1><p>Upload the filled Sizing_Input_v2.xlsx. You get the cell layout, every width and a PDF drawing.</p>
-<div class="bar"><label class="btn"><input type="file" id="f" accept=".xlsx,.xls" hidden>Upload sheet</label><button class="alt" id="ex">Try the example</button><button class="alt" id="all" hidden>PDF of all panels</button></div></header>
+<header><h1>Panel sizing</h1><p>Upload the filled Sizing_Input_v6.xlsx. You get the cell layout, widths, busbars, copper weight and two PDF options.</p>
+<div class="bar"><label class="btn"><input type="file" id="f" accept=".xlsx,.xls" hidden>Upload sheet</label><button class="alt" id="ex">Try the example</button><button class="alt" id="all1" hidden>PDF option 1 (all panels)</button><button class="alt" id="all2" hidden>PDF option 2 (all panels)</button><button class="alt" id="dlc" hidden>Download Copper Calculation</button></div></header>
 <main id="out"></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 //E
-const FM=['1','2a','2b','3','4'],X0=10,Y0=34,H=160,K=1.5;
+let _s=12345;const rnd=()=>{_s=_s+0x6D2B79F5|0;let t=Math.imul(_s^_s>>>15,1|_s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};let Y0=34;const FM=['1','2a','2b','3','4'],X0=10,H=160,K=1.5;
 const HT={XT1:[15,15,20,20,20],XT2:[15,15,20,20,20],XT3:[20,20,20,20,25],XT4:[20,20,20,20,25],XT5:[20,20,25,25,30],XT6:[25,25,30,30,35]};
 const UW={XT1:40,XT2:40,XT3:40,XT4:40,XT5:40,XT6:40,XT7:40,'E1.2':60,'E2.2':60,'E4.2 W':80,'E4.2 F':60,'E6.2':100},BRK=Object.keys(UW);
 const SCH={'1 incomer':1,'1 out of 2':1,'1 out of 2 with coupler':2,'2 out of 3 with 1 coupler':2,'2 out of 3 with 2 couplers':3};
@@ -28,9 +29,9 @@ const COL={up:['#dbe7f7','#3b6aa8','#1d3f73'],xt:['#d6efe6','#2f8f6f','#14503b']
 const P=(k,w,l,x)=>Object.assign({k,w,lines:l||[]},x),sp=w=>P('sp',w);
 const canon=s=>BRK.find(b=>b.toLowerCase()===String(s).trim().toLowerCase())||'';
 function inc(t,role,rs){const w=UW[t],L=[role,t];if(!rs)return[{p:[P('up',w,L)]}];
- if(/^XT[1-4]$/.test(t))return[{p:[P('up',40,L.concat('riser'))]}];
- if(/^XT[56]$|^XT7$|^E1\.2$/.test(t))return[{p:[P('up',60,L.concat('riser'))]}];
- const e=t==='E6.2'?40:20,c=P('up',w,L),s=P('sp',e,[],t==='E6.2'?{riser:1}:{});
+ if(/^XT[1-4]$/.test(t))return[{p:[P('up',40,L.concat('riser'),{rz:1})]}];
+ if(/^XT[56]$|^XT7$|^E1\.2$/.test(t))return[{p:[P('up',60,L.concat('riser'),{rz:1})]}];
+ const e=t==='E6.2'?40:20,c=P('up',w,L),s=P('sp',e,[],t==='E6.2'?{riser:1,rz:1}:{rz:1});
  return[{lab:(w+e)+' ('+(rs==='R'?w+'+'+e:e+'+'+w)+')',p:rs==='R'?[c,s]:[s,c]}]}
 function nd(a,b){if(!(a+b))return[];const st=[...Array(a).fill(50),...Array(b).fill(25)],tot=a*50+b*25;
  for(let k=Math.max(Math.ceil(st.length/8),Math.ceil(tot/350));;k++){const c=Array.from({length:k},()=>({s:[],v:0}));let ok=true;
@@ -46,16 +47,16 @@ function pfc(sec,det,nm){const a=sec.p50||0,b=sec.p25||0;if(!sec.pf||sec.pf==='N
  const st=[...Array(best.x).fill(50),...Array(best.y).fill(25)],pd=[];for(let i=0;i<st.length;i+=2)pd.push(st.slice(i,i+2));
  return{cells:best.n,pd}}
 function chain(pcs,pm,tail){const a=pm?[...pcs,pm]:pcs.slice(),n=a.length,g=[];let i=0;if(!n)return g;
- if(n%2){g.push(n===1&&pm?{p:[sp(20),pm,...tail]}:{p:[a[0],sp(20)]});i=1}
- for(;i<n;i+=2)g.push({p:[a[i],sp(20),a[i+1]]});
+ if(n%2){g.push(n===1&&pm?{p:[Object.assign(sp(20),{cu:1}),pm,...tail]}:{p:[a[0],Object.assign(sp(20),{cu:1})]});i=1}
+ for(;i<n;i+=2)g.push({p:[a[i],Object.assign(sp(20),{cu:1}),a[i+1]]});
  if(pm&&n>1&&tail.length)g[g.length-1].p.push(...tail);return g}
 function score(bs,ty){const l=bs.map(b=>b.cap-b.used);let s=(l.reduce((a,b)=>a+b,0)-Math.max(...l))*3;
  bs.forEach(b=>{if(!b.items.length)s+=1e3;else if(ty>1&&b.items.length>1&&new Set(b.items.map(i=>i.t)).size===1)s+=8});return s}
 function tryPack(it,b0,n){let best=null,bs=1e9;const ty=new Set(it.map(i=>i.t)).size;
- for(let a=0;a<n;a++){const bins=b0.map(b=>({cap:b.cap,sh:b.sh,closed:b.closed,used:b.used||0,items:(b.items||[]).slice()})),arr=it.slice().sort((x,y)=>y.h-x.h||Math.random()-.5);
-  if(a)for(let s=0;s<arr.length/3;s++){const i=Math.random()*arr.length|0,j=Math.random()*arr.length|0;[arr[i],arr[j]]=[arr[j],arr[i]]}
+ for(let a=0;a<n;a++){const bins=b0.map(b=>({cap:b.cap,sh:b.sh,closed:b.closed,used:b.used||0,items:(b.items||[]).slice()})),arr=it.slice().sort((x,y)=>y.h-x.h||rnd()-.5);
+  if(a)for(let s=0;s<arr.length/3;s++){const i=rnd()*arr.length|0,j=rnd()*arr.length|0;[arr[i],arr[j]]=[arr[j],arr[i]]}
   let ok=true;for(const x of arr){const c=bins.filter(b=>!b.closed&&b.used+x.h<=b.cap&&(!b.sh||x.sh));if(!c.length){ok=false;break}
-   const b=Math.random()<.7?c.reduce((p,q)=>p.cap-p.used<=q.cap-q.used?p:q):c[Math.random()*c.length|0];b.items.push(x);b.used+=x.h}
+   const b=rnd()<.7?c.reduce((p,q)=>p.cap-p.used<=q.cap-q.used?p:q):c[rnd()*c.length|0];b.items.push(x);b.used+=x.h}
   if(!ok)continue;const sc=score(bins,ty);if(sc<bs){bs=sc;best=bins}}
  return best}
 function fit(it,s,pre){const pb=pre?[pre]:[];
@@ -64,13 +65,13 @@ function fit(it,s,pre){const pb=pre?[pre]:[];
  for(let k=Math.max(0,Math.ceil((sum-60*s-fr)/165));k<=Math.ceil(sum/15)+1;k++){const b0=[...pb,...Array(s).fill({cap:60,sh:1}),...Array(k).fill({cap:165,sh:0})];
   if(!b0.length)continue;const r=tryPack(it,b0,250);if(r)return r}
  return null}
-function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
- BRK.forEach(t=>{const q=sec.q[t]||0;for(let i=0;i<q;i++)HT[t]?it.push({t,h:HT[t][fi],sh:EL(t)}):ups.push(t)});
+function sec1(sec,fi,det,f4,nm){const it=[],ups=[],bws=(sec.bw||[]).slice(),EG=t=>t==='XT7'||t==='E1.2'||t==='E2.2',EL=t=>/^XT[1-5]$/.test(t);
+ BRK.forEach(t=>{const q=sec.q[t]||0;for(let i=0;i<q;i++)HT[t]?it.push({t,h:HT[t][fi]+(sec.op4?5:0),sh:EL(t),a:((sec.am||{})[t]||[])[i]||0}):ups.push(t)});
  let pfp=null,pre=null;const pt=sec.pf,ps=pfc(sec,det,nm),hd=!!ps.pd;
  if(pt&&pt!=='No'){if(HT[pt]){const h=HT[pt][fi];
    if(hd){pre={cap:120,closed:!/^XT[12]$/.test(pt),sh:0,used:h+40*ps.pd.length,items:[{t:pt,h:h+40*ps.pd.length,sh:0,pf:1}]};if(pre.used>120)return null}
    else it.push({t:pt,h,sh:EL(pt),pf:1})}
-  else pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],hd?{pd:ps.pd,det}:{})}
+  else pfp=P('up',Math.max(hd?60:0,UW[pt]),[pt,'PF'],Object.assign({isPF:1},hd?{pd:ps.pd,det}:{}))}
  const el=ups.filter(EG).sort((a,b)=>(a==='XT7')-(b==='XT7')),ot=ups.filter(t=>!EG(t));let best=null;
  for(let s=0;s<=el.length;s++){const b=fit(it,s,pre);if(!b||b.some(x=>!x.items.length))continue;
   const nc=b.length,wd=el.slice(s).concat(ot).reduce((a,t)=>a+UW[t],0)+el.slice(0,s).reduce((a,t)=>a+(f4&&t==='XT7'?40:60),0)+60*(nc-s)+40*(f4?nc:Math.ceil(nc/2));
@@ -78,16 +79,17 @@ function sec1(sec,fi,det,f4,nm){const it=[],ups=[],EG=t=>t==='XT7'||t==='E1.2'||
  const cl=[];let si=0;
  best.b.forEach(b=>{const c={};b.items.filter(i=>!i.pf).forEach(i=>c[i.t]=(c[i.t]||0)+1);
   const ln=Object.keys(c).sort((a,z)=>BRK.indexOf(z)-BRK.indexOf(a)).map(t=>c[t]+' '+t),pf=b.items.some(i=>i.pf);
-  if(pf)ln.unshift('PF '+pt);const ut=b.sh?el[si++]:null;if(ut)ln.unshift(ut);cl.push({pc:P('xt',ut&&f4&&ut==='XT7'?40:60,ln),u:b.used,pf:+pf,sh:+b.sh})});
+  if(pf)ln.unshift('PF '+pt);const ut=b.sh?el[si++]:null;if(ut)ln.unshift(ut);cl.push({pc:P('xt',ut&&f4&&ut==='XT7'?40:60,ln,{items:b.items,isPF:pf}),u:b.used,pf:+pf,sh:+b.sh})});
  cl.sort((a,z)=>z.pf-a.pf||a.sh-z.sh||a.u-z.u);
  let pm=null,tail=[];if(hd){if(pfp)pm=pfp;else{const f=cl.shift();pm=f.pc;pm.pd=ps.pd;pm.det=det;tail=[sp(40)]}}
  const pg=chain(ps.cells.map(d=>P('pf',60,[],{dr:d,det})),pm,tail),g=[];for(let i=0;i<cl.length;){if(!f4&&i+1<cl.length){g.push({lab:'160 (60+40+60)',p:[cl[i].pc,sp(40),cl[i+1].pc]});i+=2}else{g.push({lab:'100 (60+40)',p:[cl[i].pc,sp(40)]});i++}}
  const st=el.slice(best.s).concat(ot).map(t=>({p:[P('up',UW[t],[t])]}));
+ bws.forEach(t=>st.push({p:[P('up',40,[t,'busway'])]}));
  if(!g.length&&!tail.length){const k=Math.ceil(st.length/4);let c=0;st.forEach(x=>{if(c<k&&x.p[0].w===60){x.p.push(sp(20));c++}})}
- const seq=[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st];return{seq,hd,w:seq.reduce((a,x)=>a+x.p.reduce((q,p)=>q+p.w+(p.k!=='sp'?9.9:0),0),0),d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines[0]+' (own cell)')]}}
+ const seq=[...pg,...(pfp&&!hd?[{p:[pfp]}]:[]),...g,...st];return{seq,hd,w:seq.reduce((a,x)=>a+x.p.reduce((q,p)=>q+p.w+(p.k!=='sp'?9.9:0),0),0),d:[...ps.cells.map(c=>c.flat().reduce((q,v)=>q+v,0)).map((v,i)=>'PFC cell '+(i+1)+': '+v+' kvar'),...(pt&&pt!=='No'?['PF breaker: '+pt+(hd?' (cell with a drawer: '+ps.pd.flat().join('+')+' kvar)':'')]:[]),...(hd&&!pfp?[pm.lines.join(', ')]:[]),...cl.map(c=>c.pc.lines.join(', ')),...st.map(x=>x.p[0].lines.join(' ')+' (own cell)')]}}
 function section(sec,fi,det,f4){const A=sec1(sec,fi,det,f4,0),B=sec1(sec,fi,det,f4,/^XT[1-5]$/.test(sec.pf||'')?2:1);return B&&B.hd&&B.w<A.w?B:A}
 const rev=g=>g.slice().reverse().map(x=>({lab:x.lab,p:x.p.slice().reverse()}));
-function build(pn){const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice(0,SCH[pn.scheme]).map(s=>section(s,fi,pn.det,f4)),I=pn.inc,A=inc;let sg;
+function build(pn){_s=12345;const fi=FM.indexOf(pn.form),f4=pn.form==='4',S=pn.secs.slice(0,SCH[pn.scheme]).map(s=>section(Object.assign(s,{op4:pn.opoles==4}),fi,pn.det,f4)),I=pn.inc,A=inc;let sg;
  switch(pn.scheme){
  case'1 incomer':sg=[{n:'Incomer',g:A(I[0],'Incomer 1')},{n:'Section 1',g:rev(S[0].seq)}];break;
  case'1 out of 2':sg=[{n:'Incomers 1 and 2',g:[...A(I[0],'Incomer 1'),...A(I[1],'Incomer 2')]},{n:'Section 1',g:rev(S[0].seq)}];break;
@@ -111,46 +113,123 @@ function paint(sg,d){let x=X0;
   s.g.forEach(g=>{const gx=x;let gw=0;
    g.p.forEach(c=>{const w=c.w+(c.e||0);
     if(c.k==='pf'){for(let i=0;i<4;i++){const r=c.dr[i];if(r)dw(d,x,Y0+i*40,w,r,c.det);else d.rect(x,Y0+i*40,w,40,'pf')}}
-    else{const nn=c.pd?c.pd.length:0,hh=H-40*nn;d.rect(x,Y0,w,hh,c.k);const n=c.lines.length;c.lines.forEach((t,i)=>d.text(t,x+w/2,Y0+hh/2+(i-(n-1)/2)*18,c.k));if(nn)c.pd.forEach((r,i)=>dw(d,x,Y0+hh+i*40,w,r,c.det))}
+    else{const nn=c.pd?c.pd.length:0,hh=H-40*nn;d.rect(x,Y0,w,hh,c.k);const n=c.lines.length;c.lines.forEach((t,i)=>d.text(t,x+w/2,Y0+hh/2+(i-(n-1)/2)*18-(Y0>40&&c.items&&c.items.some(q=>!q.pf)?8:0),c.k));if(nn)c.pd.forEach((r,i)=>dw(d,x,Y0+hh+i*40,w,r,c.det))}
     x+=w;gw+=w});
-   d.line(gx+2,Y0+H+6,gx+gw-2);d.text(lab(g),gx+gw/2,Y0+H+22,'n');sw+=gw});
-  d.text(s.n+': '+fm(sw)+' cm',sx,20,'h')})}
+   d.line(gx+2,Y0+H+6,gx+gw-2);d.text(lab(g),gx+gw/2,Y0+H+22,'n');d.text(fm(gx-X0),gx,Y0+H+36,'x');sw+=gw});
+  d.text(s.n+': '+fm(sw)+' cm',sx,Y0>40?10:20,'h')})}
+
+const DB={"400_35":["1*5*40",36,54,17.92],"400_40":["1*5*40",36,54,17.92],"400_45":["1*5*40",36,54,17.92],"400_50":["1*5*40",36,54,17.92],"500_35":["1*5*40",36,54,17.92],"500_40":["1*5*50",36,54,22.4],"500_45":["1*5*50",36,54,22.4],"500_50":["1*5*50",36,54,22.4],"630_35":["1*10*30",36,54,26.88],"630_40":["1*10*30",36,54,26.88],"630_45":["1*10*30",36,54,26.88],"630_50":["1*10*30",36,54,26.88],"800_35":["1*10*40",36,54,35.84],"800_40":["1*10*40",36,54,35.84],"800_45":["1*10*40",36,54,35.84],"800_50":["1*10*40",36,54,35.84],"1000_35":["1*5*80",36,54,35.84],"1000_40":["1*10*50",65,54,44.8],"1000_45":["1*10*50",65,54,44.8],"1000_50":["1*10*50",65,54,44.8],"1250_35":["1*5*100",50,54,44.8],"1250_40":["1*10*80",65,54,71.68],"1250_45":["1*10*80",65,54,71.68],"1250_50":["1*10*80",65,54,71.68],"1600_35":["1*10*80",65,54,71.68],"1600_40":["1*10*80",65,54,71.68],"1600_45":["1*10*80",65,54,71.68],"1600_50":["1*10*80",65,54,71.68],"2000_35":["2*10*60",65,54,107.52],"2000_40":["2*10*60",65,54,107.52],"2000_45":["2*10*60",65,54,107.52],"2000_50":["2*10*60",65,54,107.52],"2500_35":["2*10*80",65,54,143.36],"2500_40":["2*10*80",65,54,143.36],"2500_45":["2*10*80",65,54,143.36],"2500_50":["2*10*80",65,54,143.36],"3200_35":["2*10*100",100,54,179.2],"3200_40":["2*10*100",100,54,179.2],"3200_45":["2*10*100",100,54,179.2],"3200_50":["3*10*120",100,54,322.56],"4000_35":["3*10*120",100,54,322.56],"4000_40":["3*10*120",100,54,322.56],"4000_45":["3*10*160",120,43,430.08],"4000_50":["3*10*160",120,43,430.08],"5000_35":["3*10*160",120,43,430.08],"5000_40":["3*10*160",120,43,430.08],"5000_45":["3*10*160",120,43,430.08],"5000_50":["3*10*160",120,43,430.08],"6300_35":["3*10*200",120,43,537.6],"6300_40":["3*10*200",120,43,537.6],"6300_45":["3*10*200",120,43,537.6],"6300_50":["3*10*200",120,43,537.6]};
+const STD=[250,400,630,800,1000,1250,1600,2000,2500,3200,4000,5000,6300],upS=v=>STD.find(x=>x>=v)||STD[STD.length-1];
+const DFN=n=>n>=10?.6:n>=6?.7:n>=4?.8:n>=2?.9:1,NF={Half:.5,Full:1,Double:2},EF={Quarter:.25,Half:.5,Full:1};
+const lookup=(rt,amb)=>{const k=upS(Math.max(400,rt||0))+'_'+amb;return{ref:k,d:DB[k]}};
+const pmodel=x=>{const s=String(x).trim();if(!s||/^no$/i.test(s))return null;const m=/^(XT[1-7]|E1\.2|E2\.2|E4\.2|E6\.2)\s+(\d+)(?:\s+(Amp|F|W))?$/i.exec(s);if(!m)return null;const b=m[1].toUpperCase();return{t:b==='E4.2'?'E4.2 '+(String(m[3]).toUpperCase()==='F'?'F':'W'):b,a:+m[2]}};
+function parseRows(R,nm){const f=s=>R.findIndex(r=>String(r[0]).trim().toLowerCase()===s.toLowerCase()),v=(s,c=1)=>{const i=f(s);return i<0?'':R[i][c]};
+ const sc=String(v('Scheme')).trim(),name=String(v('Panel name')).trim();if(!sc&&!name)return null;
+ const H0=R[f('Breakers per section')]||[],col={};H0.forEach((t,i)=>{const m=/^Section (\d)( \(busway\))?$/i.exec(String(t).trim());if(m)col[m[1]+(m[2]?'b':'')]=i});
+ const secs=[1,2,3].map(k=>{const c=col[k],cb=col[k+'b'],q={},am={},bw=[];
+  if(c===undefined)return{pf:'No',pfa:0,p50:0,p25:0,q,am,bw};
+  R.forEach(r=>{const m=pmodel(r[0]);if(!m)return;const n=+r[c]||0,nb=cb===undefined?0:(+r[cb]||0);
+   if(n){q[m.t]=(q[m.t]||0)+n;(am[m.t]=am[m.t]||[]).push(...Array(n).fill(m.a))}
+   if(nb){if(HT[m.t])for(let i=0;i<nb;i++)bw.push(m.t);else q[m.t]=(q[m.t]||0)+nb}});
+  const pf=pmodel(v('PF breaker (model)',c)||v('PF breaker',c));
+  return{pf:pf?pf.t:'No',pfa:pf?pf.a:0,p50:+v('PFC 50 kvar steps',c)||0,p25:+v('PFC 25 kvar steps',c)||0,q,am,bw}});
+ return{name:name||nm,amp:+v('Panel rating (A)')||0,amb:+v('Ambient (C)')||0,poles:+(v('Incoming poles (3 or 4)')||v('Poles (incomers, coupler)'))||3,opoles:+v('Outgoing poles (3 or 4)')||3,
+  neu:String(v('Neutral')).trim(),ear:String(v('Earth')).trim(),scheme:sc,form:String(v('Form')).trim().toLowerCase(),det:/^y/i.test(String(v('Detuned reactor'))),
+  inc:['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'].map(s=>{const m=pmodel(v(s));return m?m.t:''}),secs}}
+function busbars(pn,r){const fl=[];let x=0;r.sg.forEach(sg=>sg.g.forEach(g=>g.p.forEach(p=>{const w=p.w+(p.e||0);fl.push({p,x0:x,x1:x+w,sn:sg.n});x+=w})));
+ const T=x,U=[];x=0;r.sg.forEach(sg=>sg.g.forEach(g=>{let cur=null,pend=null;g.p.forEach(p=>{const w=p.w+(p.e||0),a=x;x+=w;
+  if(p.k==='sp'&&!p.riser){if(cur)cur.x1=x;else pend=a}else{cur={x0:pend!==null?pend:a,x1:x,p};pend=null;U.push(cur)}})}));
+ const cut=s=>{const ix=U.map((_,i)=>i);if(s==='R')ix.reverse();let k=0;while(k<ix.length-1&&U[ix[k]].p.k==='pf')k++;const u=U[ix[k]];return s==='L'?u.x1-.75*(u.x1-u.x0):u.x0+.75*(u.x1-u.x0)};
+ const a=cut('L'),b=cut('R'),bb={T,mh:{a,b,len:b-a},pfh:[],pfv:[],vd:[],rz:fl.filter(o=>o.p.rz)};
+ r.sg.filter(s=>/^Section/.test(s.n)).forEach((sg,si)=>{const sec=pn.secs[si],ps=fl.filter(o=>o.sn===sg.n),pfc=ps.filter(o=>o.p.k==='pf'),pc=ps.find(o=>o.p.isPF);
+  if(pc&&pfc.length){const c0=(pc.x0+pc.x1)/2,far=pfc.map(o=>(o.x0+o.x1)/2).sort((p,q)=>Math.abs(q-c0)-Math.abs(p-c0))[0],cus=ps.filter(o=>o.p.cu),n=cus.length||1,amp=sec.pfa||0;
+   bb.pfh.push({sec:si+1,a:Math.min(c0,far),b:Math.max(c0,far),len:Math.abs(far-c0),amp});
+   bb.pfv.push({sec:si+1,xs:cus.map(o=>(o.x0+o.x1)/2),n,each:amp/n})}
+  ps.filter(o=>o.p.k==='xt'&&o.p.items).forEach(o=>{const it=o.p.items.filter(i=>!i.pf);if(!it.length)return;const sum=it.reduce((q,i)=>q+(i.a||0),0),df=DFN(it.length),des=sum*df;
+   bb.vd.push({sec:si+1,x0:o.x0,x1:o.x1,n:it.length,sum,df,des,rating:upS(des),desc:o.p.lines.filter(l=>!/^PF /.test(l)).join(', ')})})});
+ return bb}
+function cuRows(pn,bb){const amb=pn.amb||40,ph=3+(NF[pn.neu]!==undefined?NF[pn.neu]:.5)+(EF[pn.ear]!==undefined?EF[pn.ear]:.25),rows=[];
+ const add=(name,rt,len,phs,n)=>{const q=lookup(rt,amb),d=q.d;rows.push({name,ref:q.ref,csa:d?d[0]:'?',icw:d?d[1]:'',ip:d?d[2]:'',len,ph:phs,n,R:d?d[3]:0,kg:d?d[3]*phs*len*n/1000:0})};
+ add('Main H',pn.amp,bb.mh.len,ph,1);
+ if(bb.rz.length)add('Main V',pn.amp,140,pn.poles==4?4:3,bb.rz.length);
+ const g={};bb.vd.forEach(v=>g[v.rating]=(g[v.rating]||0)+1);
+ Object.keys(g).map(Number).sort((p,q)=>p-q).forEach(rt=>add('Dist',rt,180,pn.opoles==4?4:3,g[rt]));
+ bb.pfh.forEach(p=>add('P.F H Section '+p.sec,p.amp,p.len,3,1));
+ bb.pfv.forEach(p=>add('P.F V Section '+p.sec,p.each,165,3,p.n));
+ return rows}
 //U
-const tbl=r=>'<table class="ct"><tr><th>Cell type (cm)</th><th>Outer width (cm)</th><th>Count</th></tr>'+r.ct.map(c=>'<tr><td>'+c.l+'</td><td>'+fm(c.sum+9.9)+'</td><td>'+c.n+'</td></tr>').join('')+'</table>';
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),NS='http://www.w3.org/2000/svg';
 const ns=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e};
-const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));let PN=[];
-const EX={name:'EXAMPLE',amp:5000,scheme:'1 out of 2 with coupler',form:'2b',det:true,inc:['E6.2','E6.2','E6.2','',''],secs:[0,1].map(()=>({pf:'XT7',p50:6,p25:4,q:{XT2:10,XT4:5,XT5:3,'E2.2':1}}))};
-function parse(ws,nm){const R=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),v=(s,c=1)=>{const i=R.findIndex(r=>String(r[0]).trim().toLowerCase()===s.toLowerCase());return i<0?'':R[i][c]};
- const sc=String(v('Scheme')).trim(),name=String(v('Panel name')).trim();if(!sc&&!name)return null;
- return{name:name||nm,amp:+String(v('Panel rating (A)')).replace(/[^0-9]/g,'')||0,scheme:sc,form:String(v('Form')).trim().toLowerCase(),det:/^y/i.test(String(v('Detuned reactor'))),
-  inc:['Incomer 1','Incomer 2','Coupler 1','Incomer 3','Coupler 2'].map(s=>canon(v(s))),
-  secs:[1,2,3].map(c=>({pf:canon(v('PF breaker',c))||'No',p50:+v('PFC 50 kvar steps',c)||0,p25:+v('PFC 25 kvar steps',c)||0,q:Object.fromEntries(BRK.map(b=>[b,+v(b,c)||0]))}))}}
-function pdf(list){const J=window.jspdf.jsPDF;let doc;
- list.forEach(pn=>{const r=pn._r;if(!r)return;const nl=r.sd.reduce((a,s)=>a+s.l.length+1,0)+r.ct.length+2,W=Math.max((r.st.t+2*X0)*K,560),oy=60,dh=(Y0+H+34)*K,Hh=oy+dh+30+nl*12;
-  const o=W>=Hh?'l':'p';if(!doc)doc=new J({unit:'pt',format:[W,Hh],orientation:o});else doc.addPage([W,Hh],o);
-  doc.setFont(undefined,'bold');doc.setTextColor(20);doc.setFontSize(14);doc.text(pn.name+': '+pn.scheme+', Form '+pn.form+(pn.det?', detuned 7%':''),X0*K,26);
-  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text(r.st.c+' cells + '+r.st.r+' riser cell(s). Width '+r.st.t+' cm, Depth '+(r.dep||'?')+' cm'+(pn.amp?', '+pn.amp+' A':''),X0*K,44);
-  paint(r.sg,{rect:(x,y,w,h,k)=>{doc.setFillColor(...rgb(COL[k][0]));doc.setDrawColor(...rgb(COL[k][1]));doc.setLineWidth(.5);doc.rect(x*K,oy+y*K,w*K,h*K,'FD')},
-   text:(t,x,y,k)=>{doc.setTextColor(...(COL[k]?rgb(COL[k][2]):[60,60,60]));doc.setFontSize(k==='h'?10:9);doc.text(String(t),x*K,oy+y*K,{align:k==='h'?'left':'center',baseline:'middle'})},
-   line:(x1,y,x2)=>{doc.setDrawColor(150);doc.setLineWidth(.4);doc.line(x1*K,oy+y*K,x2*K,oy+y*K)}});
-  let y=oy+dh+14;doc.setTextColor(20);doc.setFontSize(9);
-  r.sd.forEach(s=>{doc.setFont(undefined,'bold');doc.text(s.n,X0*K,y);y+=12;doc.setFont(undefined,'normal');s.l.forEach(l=>{doc.text(l,X0*K+10,y);y+=12})});doc.setFont(undefined,'bold');doc.text('Cells by type: nominal width, outer width (+9.9 each cell), count',X0*K,y);y+=12;doc.setFont(undefined,'normal');r.ct.forEach(c=>{doc.text(c.l+'  |  outer '+fm(c.sum+9.9)+' cm  |  '+c.n,X0*K+10,y);y+=12})});
- if(doc)doc.save(list.length>1?'panels.pdf':(list[0].name||'panel')+'.pdf')}
+const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),f2=n=>n.toFixed(2);
+const CL=['#E53935','#F2C200','#1E64D8','#000000','#2E9E4F'],LT=['R','S','T','N','E'];let PN=[];
+const EX={name:'EXAMPLE',amp:5000,amb:40,poles:3,opoles:3,neu:'Half',ear:'Half',scheme:'1 out of 2 with coupler',form:'2b',det:true,inc:['E6.2','E6.2','E6.2','',''],
+ secs:[0,1].map(()=>({pf:'XT7',pfa:800,p50:6,p25:4,q:{XT2:10,XT4:5,XT5:3,'E2.2':1},am:{XT2:Array(10).fill(160),XT4:Array(5).fill(250),XT5:Array(3).fill(400)},bw:[]}))};
+function overlay(d,bb,pn){const np=pn.poles==4?4:3,vb=(cx,g,y1,y2,n)=>{for(let i=0;i<n;i++){const xx=cx+(i-(n-1)/2)*g;d.ln(xx,y1,xx,y2,CL[i],1.4)}};
+ const hb=(a,b,y0,n,name,len)=>{for(let i=0;i<n;i++)d.ln(X0+a,y0+i*6,X0+b,y0+i*6,CL[i],1.4);d.ln(X0+a,y0-3,X0+a,y0+(n-1)*6+3,'#666666',1);d.ln(X0+b,y0-3,X0+b,y0+(n-1)*6+3,'#666666',1);
+  d.lbl(X0+(a+b)/2,y0-10,[[name+'  '],...LT.slice(0,n).map((t,i)=>[t+' ',CL[i],1]),[' '+fm(len)+' cm']])};
+ hb(bb.mh.a,bb.mh.b,34,5,'M.H',bb.mh.len);
+ bb.pfh.forEach(p=>hb(p.a,p.b,80,3,'P.F-H',p.len));
+ bb.rz.forEach(o=>{const cx=X0+(o.x0+o.x1)/2;d.text('M.V',cx,Y0+9,'n');vb(cx,o.x1-o.x0<30?5:8,Y0+20,Y0+156,np)});
+ bb.pfv.forEach(p=>p.xs.forEach(c=>vb(X0+c,6,Y0+3,Y0+H-3,3)));
+ bb.vd.forEach(v=>{vb(X0+v.x1-9,5,Y0+2,Y0+H-2,3);d.text('VD '+v.rating,X0+v.x0+4,Y0+H-12,'t')})}
+function svgOf(r,bb,pn){Y0=bb?106:34;const W=r.st.t+2*X0,Ht=Y0+H+44,s=ns('svg',{width:W,height:Ht,viewBox:'0 0 '+W+' '+Ht});
+ const d={rect:(x,y,w,h,k)=>s.append(ns('rect',{x,y,width:w,height:h,fill:COL[k][0],stroke:COL[k][1],'stroke-width':.6})),
+  text:(t,x,y,k)=>s.append(ns('text',{x,y,'text-anchor':(k==='h'||k==='x'||k==='t')?'start':'middle','dominant-baseline':'central','font-size':k==='x'?10:k==='t'?11:12,'font-weight':k==='t'?600:400,fill:COL[k]?COL[k][2]:(k==='h'||k==='x'?'#4a5866':'#222')},t)),
+  line:(x1,y,x2)=>s.append(ns('line',{x1,x2,y1:y,y2:y,stroke:'#999','stroke-width':.5})),
+  ln:(x1,y1,x2,y2,c,w)=>s.append(ns('line',{x1,y1,x2,y2,stroke:c,'stroke-width':w})),
+  lbl:(xc,y,parts)=>{const t=ns('text',{x:xc,y,'text-anchor':'middle','font-size':12});parts.forEach(p=>t.append(ns('tspan',{fill:p[1]||'#222','font-weight':p[2]?700:400},p[0])));s.append(t)}};
+ paint(r.sg,d);if(bb)overlay(d,bb,pn);return s}
+const ctT=r=>'<table class="ct"><tr><th>Cell type (cm)</th><th>Outer width (cm)</th><th>Count</th></tr>'+r.ct.map(c=>'<tr><td>'+c.l+'</td><td>'+fm(c.sum+9.9)+'</td><td>'+c.n+'</td></tr>').join('')+'</table>';
+const cuT=pn=>{const cu=pn._cu,tot=cu.reduce((a,c)=>a+c.kg,0)*1.02;return '<p class="sum"><b>Copper</b> (ambient '+(pn.amb||40)+' C). Main bar C.S.A: <b>'+(cu[0]?cu[0].csa:'')+'</b></p><div class="sc"><table class="ct"><tr><th>Busbar</th><th>Ref</th><th>C.S.A</th><th>Length (cm)</th><th>Phases</th><th>Count</th><th>Copper (kg)</th></tr>'+
+ cu.map(c=>'<tr><td>'+c.name+'</td><td>'+c.ref+'</td><td>'+c.csa+'</td><td>'+fm(c.len)+'</td><td>'+fm(c.ph)+'</td><td>'+c.n+'</td><td>'+f2(c.kg)+'</td></tr>').join('')+
+ '<tr><td colspan="6"><b>Total (x1.02)</b></td><td><b>'+f2(tot)+'</b></td></tr></table></div>'};
 function card(pn){const el=document.createElement('section');el.className='card';let r=null,msg=check(pn);
- if(!msg)try{r=build(pn);pn._r=r}catch(e){msg='Could not size this panel: '+e.message}
- el.innerHTML='<div class="top"><div><h2>'+esc(pn.name)+'</h2><p>'+esc(pn.scheme||'No scheme chosen')+'</p></div><div class="ctl"><label>Form <select>'+FM.map(f=>'<option'+(f===pn.form?' selected':'')+'>'+f+'</option>').join('')+'</select></label>'+(r?'<button class="pdf" title="Download PDF"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3M6 9h4M6 11.5h4"/></svg>PDF</button>':'')+'</div></div>';
+ if(!msg)try{r=build(pn);pn._r=r;pn._bb=busbars(pn,r);pn._cu=cuRows(pn,pn._bb)}catch(e){msg='Could not size this panel: '+e.message;r=null}
+ const sh=pn._show!==false,w=[];if(r){if(!pn.amp)w.push('Choose the panel rating for the depth and copper.');if(!pn.amb)w.push('Ambient not chosen: 40 C used.');if(!pn.neu||!pn.ear)w.push('Neutral or Earth not chosen: Half and Quarter used.')}
+ el.innerHTML='<div class="top"><div><h2>'+esc(pn.name)+'</h2><p>'+esc(pn.scheme||'No scheme chosen')+(pn.amp?', '+pn.amp+' A':'')+'</p></div><div class="ctl"><label>Form <select>'+FM.map(f=>'<option'+(f===pn.form?' selected':'')+'>'+f+'</option>').join('')+'</select></label>'+
+  (r?'<label class="sw"><input type="checkbox" class="shc"'+(sh?' checked':'')+'> Show copper</label><button class="p1" title="PDF option 1: layout with copper">PDF 1</button><button class="p2 alt" title="PDF option 2: layout only">PDF 2</button>':'')+'</div></div>';
  el.querySelector('select').onchange=e=>{pn.form=e.target.value;el.replaceWith(card(pn))};
  if(!r){el.insertAdjacentHTML('beforeend','<p class="warn">'+esc(msg)+'</p>');return el}
- el.querySelector('.pdf').onclick=()=>pdf([pn]);
- el.insertAdjacentHTML('beforeend','<p class="sum"><b>'+r.st.c+' cells</b> + '+r.st.r+' riser cell(s). Width: <b>'+r.st.t+' cm</b>, Depth: <b>'+(r.dep?r.dep+' cm':'choose the panel rating')+'</b></p>'+tbl(r)+'<div class="sc"></div><p class="lg">1 px = 1 cm. Every cell includes 9.9 cm (99 mm) outer allowance. Blue: breakers and incomers. Green: XT cells. Amber: PFC drawers (D = detuned). Grey: compartment, copper, riser.</p><details><summary>Cells per section</summary>'+r.sd.map(s=>'<b>'+s.n+'</b><ul>'+s.l.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>').join('')+'</details>');
- const W=r.st.t+2*X0,Ht=Y0+H+34,s=ns('svg',{width:W,height:Ht,viewBox:'0 0 '+W+' '+Ht});
- paint(r.sg,{rect:(x,y,w,h,k)=>s.append(ns('rect',{x,y,width:w,height:h,fill:COL[k][0],stroke:COL[k][1],'stroke-width':.6})),
-  text:(t,x,y,k)=>s.append(ns('text',{x,y,'text-anchor':k==='h'?'start':'middle','dominant-baseline':'central','font-size':12,fill:COL[k]?COL[k][2]:(k==='h'?'#4a5866':'#333')},t)),
-  line:(x1,y,x2)=>s.append(ns('line',{x1,x2,y1:y,y2:y,stroke:'#999','stroke-width':.5}))});
- el.querySelector('.sc').append(s);return el}
-function render(){const o=$('#out');o.innerHTML='';PN.forEach(p=>o.append(card(p)));$('#all').hidden=!PN.length;if(!PN.length)o.innerHTML='<p class="note">No panel found. Fill a Panel sheet (choose a scheme first) and upload the file again.</p>'}
-$('#f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const wb=XLSX.read(r.result,{type:'array'});PN=[];wb.SheetNames.forEach(n=>{if(/^(panel|example)/i.test(n)){const p=parse(wb.Sheets[n],n);if(p)PN.push(p)}});render()}catch(x){$('#out').innerHTML='<p class="note">Could not read this file. Use Sizing_Input_v2.xlsx.</p>'}};r.readAsArrayBuffer(f)};
+ el.querySelector('.shc').onchange=e=>{pn._show=e.target.checked;el.replaceWith(card(pn))};
+ el.querySelector('.p1').onclick=()=>pdf([pn],1);el.querySelector('.p2').onclick=()=>pdf([pn],2);
+ el.insertAdjacentHTML('beforeend','<p class="sum"><b>'+r.st.c+' cells</b> + '+r.st.r+' riser cell(s). Width: <b>'+r.st.t+' cm</b>, Depth: <b>'+(r.dep?r.dep+' cm':'choose the panel rating')+'</b></p>'+(w.length?'<p class="warn">'+esc(w.join(' '))+'</p>':'')+ctT(r)+'<div class="sc"></div><p class="lg">1 px = 1 cm. Every cell includes 9.9 cm (99 mm) outer allowance.'+(sh?' Bars: R red, S yellow, T blue, N black, E green.':'')+'</p>'+(sh?cuT(pn):'')+
+  '<details><summary>Cells per section</summary>'+r.sd.map(s=>'<b>'+s.n+'</b><ul>'+s.l.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>').join('')+'</details>');
+ el.querySelector('.sc').append(svgOf(r,sh?pn._bb:null,pn));return el}
+function render(){const o=$('#out');o.innerHTML='';PN.forEach(p=>o.append(card(p)));['all1','all2','dlc'].forEach(i=>$('#'+i).hidden=!PN.length);if(!PN.length)o.innerHTML='<p class="note">No panel found. Fill a Panel sheet (choose a scheme first) and upload the file again.</p>'}
+const dpdf=(doc,oy)=>({rect:(x,y,w,h,k)=>{doc.setFillColor(...rgb(COL[k][0]));doc.setDrawColor(...rgb(COL[k][1]));doc.setLineWidth(.5);doc.rect(x*K,oy+y*K,w*K,h*K,'FD')},
+ text:(t,x,y,k)=>{const L=k==='h'||k==='x'||k==='t';doc.setTextColor(...(COL[k]?rgb(COL[k][2]):k==='x'?[110,110,110]:k==='h'?[75,88,102]:[40,40,40]));doc.setFontSize(k==='h'?10:k==='x'?7:k==='t'?8:9);doc.setFont(undefined,k==='t'?'bold':'normal');doc.text(String(t),x*K,oy+y*K,{align:L?'left':'center',baseline:'middle'})},
+ line:(x1,y,x2)=>{doc.setDrawColor(150);doc.setLineWidth(.4);doc.line(x1*K,oy+y*K,x2*K,oy+y*K)},
+ ln:(x1,y1,x2,y2,c,w)=>{doc.setDrawColor(...rgb(c));doc.setLineWidth(w*.7);doc.line(x1*K,oy+y1*K,x2*K,oy+y2*K)},
+ lbl:(xc,y,parts)=>{doc.setFontSize(9);doc.setFont(undefined,'bold');const tw=parts.reduce((s,p)=>s+doc.getTextWidth(p[0]),0);let xx=xc*K-tw/2;parts.forEach(p=>{doc.setTextColor(...rgb(p[1]||'#282828'));doc.text(p[0],xx,oy+y*K,{baseline:'middle'});xx+=doc.getTextWidth(p[0])})}});
+function pdf(list,opt){const J=window.jspdf.jsPDF;let doc;
+ list.forEach(pn=>{const r=pn._r;if(!r)return;const o1=opt===1,bb=pn._bb,cu=pn._cu||[];Y0=o1?106:34;const it=[],L=(s,b)=>it.push({s,b}),Rw=(c,xs,b)=>it.push({c,xs,b});
+  L('Cells by type',1);Rw(['Cell type (cm)','Outer width (cm)','Count'],[10,170,290],1);r.ct.forEach(c=>Rw([c.l,fm(c.sum+9.9),String(c.n)],[10,170,290]));
+  if(o1){const tot=cu.reduce((a,c)=>a+c.kg,0)*1.02,xs=[10,150,230,300,350,400,470,520,570];
+   it.push({gap:1});L('Copper calculation (ambient '+(pn.amb||40)+' C, Neutral '+(pn.neu||'Half')+', Earth '+(pn.ear||'Quarter')+', Main bar C.S.A '+(cu[0]?cu[0].csa:'')+')',1);
+   Rw(['Busbar','Ref','C.S.A','Icw','IP','Length (cm)','Phases','Count','Copper (kg)'],xs,1);
+   cu.forEach(c=>Rw([c.name,c.ref,String(c.csa),String(c.icw),String(c.ip),fm(c.len),fm(c.ph),String(c.n),f2(c.kg)],xs));
+   Rw(['Total x1.02','','','','','','','',f2(tot)],xs,1);L('Length is the length of one bar. Copper (kg) = factor x phases x length x count / 1000.');
+   if(bb.vd.length){it.push({gap:1});L('Vertical Distribution (sum of amps x diversity factor, rounded up)',1);const x2=[10,100,330,380,440,480,550];Rw(['Cell','Breakers','Count','Sum (A)','Factor','Design (A)','Busbar (A)'],x2,1);
+    bb.vd.forEach(v=>Rw(['Section '+v.sec,v.desc,String(v.n),String(v.sum),String(v.df),String(Math.round(v.des)),String(v.rating)],x2))}}
+  const W=Math.max((r.st.t+2*X0)*K,680),oy=64,dh=(Y0+H+44)*K,Hh=oy+dh+16+it.length*12+30,o=W>=Hh?'l':'p';
+  if(!doc)doc=new J({unit:'pt',format:[W,Hh],orientation:o});else doc.addPage([W,Hh],o);
+  doc.setFont(undefined,'bold');doc.setTextColor(20);doc.setFontSize(15);doc.text('Panel layout - Option '+opt+(o1?': with copper calculations':''),X0*K,26);
+  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text(pn.name+': '+(pn.amp?pn.amp+' A, ':'')+'Form '+pn.form+', '+pn.scheme+'. Width '+fm(r.st.t)+' cm, Depth '+(r.dep||'?')+' cm, '+r.st.c+' cells + '+r.st.r+' riser cell(s)',X0*K,44);
+  paint(r.sg,dpdf(doc,oy));if(o1)overlay(dpdf(doc,oy),bb,pn);
+  let y=oy+dh+16;doc.setFontSize(9);
+  it.forEach(q=>{if(q.gap){y+=8;return}doc.setTextColor(20);doc.setFont(undefined,q.b?'bold':'normal');if(q.c)q.c.forEach((t,i)=>doc.text(t,X0*K+q.xs[i],y));else doc.text(q.s,X0*K,y);y+=12})});
+ if(doc)doc.save(opt===1?'Panels_Option1_Layout_and_Copper.pdf':'Panels_Option2_Layout.pdf')}
+function dlCu(){const wb=XLSX.utils.book_new(),used={};
+ PN.forEach(pn=>{const cu=pn._cu;if(!pn._r||!cu)return;
+  const aoa=[['Panel',pn.name],['Rating (A)',pn.amp],['Ambient (C)',pn.amb||40],['Neutral / Earth',(pn.neu||'Half')+' / '+(pn.ear||'Quarter')],[],['No.','Item','REF','C.S.A','Icw','IP','Length (CM)','No. Of Phases','Copper Calculator (g/cm)','Copper (KG)']];
+  cu.forEach(c=>aoa.push([c.n,c.name,c.ref,c.csa,c.icw,c.ip,+fm(c.len),c.ph,c.R,+c.kg.toFixed(4)]));
+  const a0=7,a1=6+cu.length,tr=a1+1;aoa.push(['Total x1.02']);const ws=XLSX.utils.aoa_to_sheet(aoa);
+  for(let i=a0;i<=a1;i++)ws['J'+i]={t:'n',v:cu[i-a0].kg,f:'I'+i+'*H'+i+'*G'+i+'*A'+i+'/1000'};
+  ws['J'+tr]={t:'n',v:cu.reduce((a,c)=>a+c.kg,0)*1.02,f:'SUM(J'+a0+':J'+a1+')*1.02'};ws['!ref']='A1:J'+tr;ws['!cols']=[6,22,12,12,8,8,12,14,22,12].map(w=>({wch:w}));
+  let nm=String(pn.name).replace(/[\[\]:*?\/\\]/g,' ').slice(0,28)||'Panel';let k=nm,i=2;while(used[k])k=nm+' '+i++;used[k]=1;XLSX.utils.book_append_sheet(wb,ws,k)});
+ XLSX.writeFile(wb,'Copper_Calculation.xlsx')}
+const parse=(ws,nm)=>parseRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),nm);
+$('#f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const wb=XLSX.read(r.result,{type:'array'});PN=[];wb.SheetNames.forEach(n=>{if(/^(panel|example)/i.test(n)){const p=parse(wb.Sheets[n],n);if(p)PN.push(p)}});render()}catch(x){$('#out').innerHTML='<p class="note">Could not read this file. Use Sizing_Input_v6.xlsx.</p>'}};r.readAsArrayBuffer(f)};
 $('#ex').onclick=()=>{PN=[JSON.parse(JSON.stringify(EX))];render()};
-$('#all').onclick=()=>pdf(PN);
+$('#all1').onclick=()=>pdf(PN,1);$('#all2').onclick=()=>pdf(PN,2);$('#dlc').onclick=dlCu;
 </script></body></html>
